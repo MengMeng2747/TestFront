@@ -99,7 +99,7 @@ const ForbiddenPage = () => {
       <div style={{ textAlign: "center" }}>
         <div style={{ fontSize: 64, marginBottom: 16 }}>⛔</div>
         <h1 style={{ color: T.red, fontSize: 28, margin: "0 0 8px" }}>403 Forbidden</h1>
-        <p style={{ color: T.muted, margin: "0 0 24px" }}>คุณไม่มีสิทธิ์เข้าใช้งานส่วน Admin</p>
+        <p style={{ color: T.muted, margin: "0 0 24px" }}>คุณไม่มีสิทธิ์เข้าใช้งานส่วน Admin (BR-04)</p>
         <button onClick={() => navigate("/login")}
           style={{ padding: "10px 22px", background: T.accent, border: "none", borderRadius: 8, color: "#0d1117", fontWeight: 700, cursor: "pointer", ...F }}>
           ← กลับหน้า Login
@@ -253,15 +253,21 @@ const ResellerLayout = ({ children, resellerInfo }: { children: ReactNode; resel
 //  ✅ เพิ่มคอลัมน์ "ชื่อร้าน" ระหว่างเลขออเดอร์และลูกค้า
 // ════════════════════════════════════════════════════════════
 const AdminDashboardConnected = () => {
+  const navigate = useNavigate();
   const [dashboard, setDashboard] = useState<AdminDashboardData | null>(null);
   const [orders,    setOrders]    = useState<OrderAPI[]>([]);
+  const [products,  setProducts]  = useState<ProductAPI[]>([]);
+  const [resellers, setResellers] = useState<ResellerAPI[]>([]);
   const [loading,   setLoading]   = useState(true);
   const [error,     setError]     = useState("");
 
   useEffect(() => {
     setLoading(true);
-    Promise.all([fetchAdminDashboard(), fetchAllOrders()])
-      .then(([dash, ords]) => { setDashboard(dash); setOrders(ords); })
+    Promise.all([fetchAdminDashboard(), fetchAllOrders(), fetchAllProducts(), fetchAllResellers()])
+      .then(([dash, ords, prods, ress]) => {
+        setDashboard(dash); setOrders(ords);
+        setProducts(prods); setResellers(ress);
+      })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -285,6 +291,7 @@ const AdminDashboardConnected = () => {
         {[
           { label: "ยอดขายรวม",          value: `฿${Number(dashboard?.totalSales   ?? 0).toLocaleString()}`,  sub: "shipped+completed", accent: "#3fb950", icon: "📈" },
           { label: "กำไรจ่ายตัวแทน",     value: `฿${Number(dashboard?.totalProfit  ?? 0).toLocaleString()}`,  sub: "บวก Wallet แล้ว",   accent: "#f0883e", icon: "💰" },
+          { label: "รายได้ Admin (สุทธิ)", value: `฿${(Number(dashboard?.totalSales ?? 0) - Number(dashboard?.totalProfit ?? 0)).toLocaleString()}`, sub: "ยอดขาย − กำไรตัวแทน", accent: "#58a6ff", icon: "🏦" },
           { label: "ออเดอร์ทั้งหมด",     value: Number(dashboard?.totalOrders   ?? 0),                        sub: `รอ ${dashboard?.pendingOrders ?? 0} รายการ`, accent: "#d29922", icon: "📦" },
           { label: "รอดำเนินการ",         value: Number(dashboard?.pendingOrders ?? 0),                        sub: "ยังไม่จัดส่ง",       accent: "#f85149", icon: "⏳" },
           { label: "ตัวแทนอนุมัติแล้ว",  value: Number(dashboard?.totalResellers  ?? 0),                      sub: "Login ได้",          accent: "#58a6ff", icon: "👥" },
@@ -300,40 +307,201 @@ const AdminDashboardConnected = () => {
         ))}
       </div>
 
-      <h3 style={{ color: T.text, fontSize: 15, fontWeight: 600, marginBottom: 14, ...F }}>ออเดอร์ล่าสุด</h3>
-      <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, overflow: "hidden" }}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ background: T.surface2 }}>
-                {["เลขออเดอร์","ชื่อร้าน","ลูกค้า","ยอดขาย","กำไร","สถานะ"].map(h => (
-                  <th key={h} style={{ padding: "11px 16px", textAlign: "left", color: T.muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", ...F }}>{h}</th>
+      {/* ── Admin Sales Chart — group by วันที่ ──────────────── */}
+      {(() => {
+        const adminChartMap = new Map<string, { sale: number; profit: number; net: number }>();
+        mappedOrders
+          .filter(o => ["shipped","completed"].includes(o.status))
+          .forEach(o => {
+            const day = new Date(o.date).toLocaleDateString("th-TH", { day: "2-digit", month: "short" });
+            const prev = adminChartMap.get(day) ?? { sale: 0, profit: 0, net: 0 };
+            adminChartMap.set(day, {
+              sale:   prev.sale   + Number(o.totalSale),
+              profit: prev.profit + Number(o.totalProfit ?? 0),
+              net:    prev.net    + Number(o.totalSale) - Number(o.totalProfit ?? 0),
+            });
+          });
+        const adminChartDays = [...adminChartMap.entries()]
+          .sort((a, b) => a[0].localeCompare(b[0]))
+          .slice(-7);
+        const adminMaxVal = Math.max(...adminChartDays.map(([, v]) => Math.max(v.sale, v.profit, v.net)), 1);
+        return (
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+            <h3 style={{ color: T.text, fontSize: 15, fontWeight: 600, margin: "0 0 2px", fontSize: 13, ...F }}>สรุปยอดขายและกำไร</h3>
+            <p style={{ color: T.muted, fontSize: 12, margin: "0 0 12px", fontSize: 11, ...F }}>รายวัน (shipped + completed) สูงสุด 7 วัน</p>
+            {adminChartDays.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "32px", color: T.muted, fontSize: 13, ...F }}>ยังไม่มีข้อมูลออเดอร์</div>
+            ) : (
+              <>
+                <div style={{ overflowX: "auto" }}>
+                  <div style={{ minWidth: adminChartDays.length * 80, padding: "0 8px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 16, height: 110, marginBottom: 6 }}>
+                      {adminChartDays.map(([day, v], i) => (
+                        <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", height: "100%", justifyContent: "flex-end" }}>
+                          <div style={{ display: "flex", alignItems: "flex-end", gap: 4, width: "100%" }}>
+                            <div style={{ flex: 1, background: "rgba(63,185,80,.85)", borderRadius: "4px 4px 0 0", height: `${Math.max(4, (v.sale / adminMaxVal) * 90)}px`, cursor: "pointer" }} title={`ยอดขาย ฿${v.sale.toLocaleString()}`} />
+                            <div style={{ flex: 1, background: "rgba(240,136,62,.85)", borderRadius: "4px 4px 0 0", height: `${Math.max(4, (v.profit / adminMaxVal) * 90)}px`, cursor: "pointer" }} title={`กำไรตัวแทน ฿${v.profit.toLocaleString()}`} />
+                            <div style={{ flex: 1, background: "rgba(88,166,255,.85)", borderRadius: "4px 4px 0 0", height: `${Math.max(4, (v.net / adminMaxVal) * 90)}px`, cursor: "pointer" }} title={`Admin สุทธิ ฿${v.net.toLocaleString()}`} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: "flex", gap: 16 }}>
+                      {adminChartDays.map(([day], i) => (
+                        <div key={i} style={{ flex: 1, textAlign: "center", color: T.dim, fontSize: 10, ...F }}>{day}</div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: "flex", gap: 20, marginTop: 10 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "rgba(63,185,80,.85)" }} />
+                    <span style={{ color: T.muted, fontSize: 12, ...F }}>ยอดขายรวม</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "rgba(240,136,62,.85)" }} />
+                    <span style={{ color: T.muted, fontSize: 12, ...F }}>กำไรจ่ายตัวแทน</span>
+                  </div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: "rgba(88,166,255,.85)" }} />
+                    <span style={{ color: T.muted, fontSize: 12, ...F }}>รายได้ Admin (สุทธิ)</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Bottom: ตาราง + Widgets ──────────────────────────── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 280px", gap: 16, alignItems: "start" }}>
+
+        {/* ซ้าย: ตารางออเดอร์ล่าสุด */}
+        <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, overflow: "hidden" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "14px 18px", borderBottom: `1px solid ${T.border2}` }}>
+            <h3 style={{ color: T.text, fontSize: 15, fontWeight: 700, margin: 0, ...F }}>ออเดอร์ล่าสุด</h3>
+            <button onClick={() => navigate("/admin/orders")}
+              style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "5px 12px", color: T.muted, fontSize: 12, cursor: "pointer", ...F, display: "flex", alignItems: "center", gap: 4 }}>
+              ดูทั้งหมด →
+            </button>
+          </div>
+          <div style={{ overflowX: "auto" }}>
+            <table style={{ width: "100%", borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ background: T.surface2 }}>
+                  {["เลขออเดอร์","ชื่อร้าน","ลูกค้า","ยอด","กำไร","สถานะ"].map(h => (
+                    <th key={h} style={{ padding: "10px 14px", textAlign: "left", color: T.muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", ...F }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {[...mappedOrders]
+                  .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+                  .slice(0, 5)
+                  .map(o => {
+                    const isDone = ["shipped","completed"].includes(o.status);
+                    return (
+                      <tr key={o.id} style={{ borderTop: `1px solid ${T.border2}` }}>
+                        <td style={{ padding: "12px 14px", color: T.accent, fontWeight: 600, fontSize: 12, ...F }}>{o.id}</td>
+                        <td style={{ padding: "12px 14px", color: T.text, fontSize: 13, fontWeight: 600, ...F }}>{o.shopName || "—"}</td>
+                        <td style={{ padding: "12px 14px", color: T.text, fontSize: 13, ...F }}>{o.customer}</td>
+                        <td style={{ padding: "12px 14px", color: T.green, fontWeight: 700, fontSize: 13, ...F }}>฿{Number(o.totalSale).toLocaleString()}</td>
+                        <td style={{ padding: "12px 14px", color: isDone ? T.orange : T.dim, fontWeight: isDone ? 700 : 400, fontSize: 13, ...F }}>{isDone ? `฿${Number(o.totalProfit).toLocaleString()}` : "—"}</td>
+                        <td style={{ padding: "12px 14px" }}>
+                          <span style={{ background: o.status==="pending" ? "rgba(210,153,34,.15)" : o.status==="shipped" ? "rgba(88,166,255,.12)" : "rgba(188,140,255,.12)", color: o.status==="pending" ? T.yellow : o.status==="shipped" ? T.accent : T.purple, border: `1px solid ${o.status==="pending" ? "rgba(210,153,34,.4)" : o.status==="shipped" ? "rgba(88,166,255,.35)" : "rgba(188,140,255,.35)"}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, ...F }}>
+                            {o.status==="pending" ? "รออนุมัติ" : o.status==="shipped" ? "จัดส่งแล้ว" : "เสร็จสมบูรณ์"}
+                          </span>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* ขวา: 2 Widgets */}
+        <div style={{ display: "flex", flexDirection: "column" as const, gap: 14 }}>
+
+          {/* Widget 1: สต็อกต่ำ */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13 }}>⚠️</span>
+                <span style={{ color: T.text, fontWeight: 700, fontSize: 13, ...F }}>สต็อกต่ำ</span>
+                {/* ✅ Badge แจ้งเตือนจำนวนสินค้าที่ stock < 20 */}
+                {products.filter(p => p.stock < 20).length > 0 && (
+                  <span style={{ background: T.red, color: "#fff", borderRadius: "50%", fontSize: 10, fontWeight: 700, width: 18, height: 18, display: "inline-flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    {products.filter(p => p.stock < 20).length}
+                  </span>
+                )}
+              </div>
+              <button onClick={() => navigate("/admin/products")}
+                style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "3px 8px", color: T.muted, fontSize: 11, cursor: "pointer", ...F }}>
+                จัดการ
+              </button>
+            </div>
+            {products.filter(p => p.stock <= 20).length === 0 ? (
+              <div style={{ color: T.muted, fontSize: 12, textAlign: "center", padding: "12px 0", ...F }}>สต็อกปกติทุกรายการ ✅</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                {products.filter(p => p.stock === 0).slice(0, 2).map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 7, background: "rgba(248,81,73,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
+                      {p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 7 }} /> : "📦"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: T.text, fontSize: 12, fontWeight: 600, ...F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                      <div style={{ color: T.red, fontSize: 11, ...F }}>หมด</div>
+                    </div>
+                  </div>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {[...mappedOrders]
-                .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                .slice(0, 5)
-                .map(o => {
-                  const isDone = ["shipped","completed"].includes(o.status);
-                  return (
-                    <tr key={o.id} style={{ borderTop: `1px solid ${T.border2}` }}>
-                      <td style={{ padding: "13px 16px", color: T.accent,  fontWeight: 600, fontSize: 12, ...F }}>{o.id}</td>
-                      <td style={{ padding: "13px 16px", color: T.text,    fontSize: 13, fontWeight: 600, ...F }}>{o.shopName || "—"}</td>
-                      <td style={{ padding: "13px 16px", color: T.text,    fontSize: 13, ...F }}>{o.customer}</td>
-                      <td style={{ padding: "13px 16px", color: T.green,   fontWeight: 700, fontSize: 13, ...F }}>฿{Number(o.totalSale).toLocaleString()}</td>
-                      <td style={{ padding: "13px 16px", color: isDone ? T.orange : T.dim, fontWeight: isDone ? 700 : 400, fontSize: 13, ...F }}>{isDone ? `฿${Number(o.totalProfit).toLocaleString()}` : "—"}</td>
-                      <td style={{ padding: "13px 16px" }}>
-                        <span style={{ background: o.status==="pending" ? "rgba(210,153,34,.15)" : o.status==="shipped" ? "rgba(88,166,255,.12)" : "rgba(188,140,255,.12)", color: o.status==="pending" ? T.yellow : o.status==="shipped" ? T.accent : T.purple, border: `1px solid ${o.status==="pending" ? "rgba(210,153,34,.4)" : o.status==="shipped" ? "rgba(88,166,255,.35)" : "rgba(188,140,255,.35)"}`, borderRadius: 6, padding: "3px 10px", fontSize: 12, fontWeight: 600, ...F }}>
-                          {o.status==="pending" ? "รออนุมัติ" : o.status==="shipped" ? "จัดส่งแล้ว" : "เสร็จสมบูรณ์"}
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-            </tbody>
-          </table>
+                {products.filter(p => p.stock > 0 && p.stock <= 20).slice(0, 3).map(p => (
+                  <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: 7, background: "rgba(210,153,34,.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, flexShrink: 0 }}>
+                      {p.imageUrl ? <img src={p.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: 7 }} /> : "📦"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: T.text, fontSize: 12, fontWeight: 600, ...F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.name}</div>
+                      <div style={{ color: T.yellow, fontSize: 11, ...F }}>เหลือ {p.stock} ชิ้น</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Widget 2: รออนุมัติ */}
+          <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 16px" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <span style={{ fontSize: 13 }}>👥</span>
+                <span style={{ color: T.text, fontWeight: 700, fontSize: 13, ...F }}>รออนุมัติ</span>
+              </div>
+              <button onClick={() => navigate("/admin/resellers")}
+                style={{ background: "none", border: `1px solid ${T.border}`, borderRadius: 6, padding: "3px 8px", color: T.muted, fontSize: 11, cursor: "pointer", ...F }}>
+                ดูทั้งหมด
+              </button>
+            </div>
+            {resellers.filter(r => r.status === "pending").length === 0 ? (
+              <div style={{ color: T.muted, fontSize: 12, textAlign: "center", padding: "12px 0", ...F }}>ไม่มีรออนุมัติ ✅</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column" as const, gap: 8 }}>
+                {resellers.filter(r => r.status === "pending").slice(0, 4).map(r => (
+                  <div key={r.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{ width: 30, height: 30, borderRadius: "50%", background: "rgba(88,166,255,.2)", border: `1px solid rgba(88,166,255,.4)`, display: "flex", alignItems: "center", justifyContent: "center", color: T.accent, fontSize: 12, fontWeight: 700, flexShrink: 0 }}>
+                      {r.name?.charAt(0) ?? "R"}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ color: T.text, fontSize: 12, fontWeight: 600, ...F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.name}</div>
+                      <div style={{ color: T.muted, fontSize: 11, ...F, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{r.email}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
         </div>
       </div>
     </div>
@@ -526,9 +694,9 @@ const LoginPage = ({ setSession }: { setSession: (u: SessionUser) => void }) => 
       // ลอง Reseller
       const result = await resellerLogin({ email, password: pass });
       if (result.includes("รออนุมัติ")) {
-        setStatusMsg({ type: "warning", msg: "บัญชีรออนุมัติ — กรุณารอการติดต่อจาก Admin" });
+        setStatusMsg({ type: "warning", msg: "บัญชีรออนุมัติ — กรุณารอการติดต่อจาก Admin (BR-16)" });
       } else if (result.includes("ไม่ได้รับการอนุมัติ")) {
-        setStatusMsg({ type: "error", msg: "บัญชีนี้ไม่ได้รับการอนุมัติ — กรุณาติดต่อ Admin" });
+        setStatusMsg({ type: "error", msg: "บัญชีนี้ไม่ได้รับการอนุมัติ — กรุณาติดต่อ Admin (BR-17)" });
       } else {
         try {
           const me = await fetchMe();
@@ -556,7 +724,7 @@ const LoginPage = ({ setSession }: { setSession: (u: SessionUser) => void }) => 
             <div style={{ textAlign: "center", marginBottom: 28 }}>
               <div style={{ fontSize: 40, marginBottom: 10 }}>🔐</div>
               <h1 style={{ color: T.text, fontSize: 20, fontWeight: 700, margin: "0 0 4px", ...F }}>เข้าสู่ระบบ</h1>
-              <p style={{ color: T.muted, fontSize: 13, margin: 0, ...F }}>Admin และ Reseller</p>
+              <p style={{ color: T.muted, fontSize: 13, margin: 0, ...F }}>ใช้ได้ทั้ง Admin และ Reseller</p>
             </div>
 
             {error     && <Alert type="error"          message={error}         onClose={() => setError("")} />}
@@ -709,7 +877,64 @@ const ResellerDashboardConnected = ({ session }: { session: SessionUser }) => {
     };
   });
 
-  return <ResellerDashboard user={info} shopProducts={mappedShopProducts} orders={mappedOrders} walletEntries={walletEntries} />;
+  // ── Reseller chart data — group by วันที่ ────────────────
+  const resellerChartMap = new Map<string, { sale: number; profit: number }>();
+  mappedOrders
+    .filter(o => ["shipped","completed"].includes(o.status))
+    .forEach(o => {
+      const day = new Date(o.date).toLocaleDateString("th-TH", { day: "2-digit", month: "short" });
+      const profit = walletEntries.find((w: any) => w.orderId === o.id)?.profit ?? Number(o.totalProfit ?? 0);
+      const prev = resellerChartMap.get(day) ?? { sale: 0, profit: 0 };
+      resellerChartMap.set(day, { sale: prev.sale + Number(o.totalSale), profit: prev.profit + Number(profit) });
+    });
+  const resellerChartDays = [...resellerChartMap.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-7);
+  const resellerMaxVal = Math.max(...resellerChartDays.map(([, v]) => Math.max(v.sale, v.profit)), 1);
+
+  const ResellerChart = () => (
+    <div style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 12, padding: "14px 18px", marginBottom: 20 }}>
+      <h3 style={{ color: T.text, fontSize: 15, fontWeight: 600, margin: "0 0 2px", fontSize: 13, ...F }}>สรุปกำไรและยอดขาย</h3>
+      <p style={{ color: T.muted, fontSize: 12, margin: "0 0 12px", fontSize: 11, ...F }}>รายวัน (shipped + completed) สูงสุด 7 วัน</p>
+      {resellerChartDays.length === 0 ? (
+        <div style={{ textAlign: "center", padding: "32px", color: T.muted, fontSize: 13, ...F }}>ยังไม่มีข้อมูลออเดอร์</div>
+      ) : (
+        <>
+          <div style={{ overflowX: "auto" }}>
+            <div style={{ minWidth: resellerChartDays.length * 80, padding: "0 8px" }}>
+              <div style={{ display: "flex", alignItems: "flex-end", gap: 16, height: 110, marginBottom: 6 }}>
+                {resellerChartDays.map(([day, v], i) => (
+                  <div key={i} style={{ flex: 1, display: "flex", flexDirection: "column" as const, alignItems: "center", height: "100%", justifyContent: "flex-end" }}>
+                    <div style={{ display: "flex", alignItems: "flex-end", gap: 4, width: "100%" }}>
+                      <div style={{ flex: 1, background: "rgba(188,140,255,.85)", borderRadius: "4px 4px 0 0", height: `${Math.max(4, (v.profit / resellerMaxVal) * 90)}px`, cursor: "pointer" }} title={`กำไร ฿${v.profit.toLocaleString()}`} />
+                      <div style={{ flex: 1, background: "rgba(63,185,80,.85)", borderRadius: "4px 4px 0 0", height: `${Math.max(4, (v.sale / resellerMaxVal) * 90)}px`, cursor: "pointer" }} title={`ยอดขาย ฿${v.sale.toLocaleString()}`} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 16 }}>
+                {resellerChartDays.map(([day], i) => (
+                  <div key={i} style={{ flex: 1, textAlign: "center", color: T.dim, fontSize: 10, ...F }}>{day}</div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div style={{ display: "flex", gap: 20, marginTop: 10 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: "rgba(188,140,255,.85)" }} />
+              <span style={{ color: T.muted, fontSize: 12, ...F }}>กำไรสะสม (Wallet)</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <div style={{ width: 12, height: 12, borderRadius: 3, background: "rgba(63,185,80,.85)" }} />
+              <span style={{ color: T.muted, fontSize: 12, ...F }}>ยอดขายรวม</span>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+
+  return <ResellerDashboard user={info} shopProducts={mappedShopProducts} orders={mappedOrders} walletEntries={walletEntries} chart={<ResellerChart />} />;
 };
 
 const CatalogPageConnected = ({ session }: { session: SessionUser }) => {
@@ -1072,7 +1297,7 @@ const ProductFormModalInline = ({ product, orders, onSave, saving }: { product: 
     if (!form.name.trim())             e.name     = "กรุณากรอกชื่อสินค้า";
     if (!form.cost || +form.cost <= 0) e.cost     = "ราคาทุนต้องมากกว่า 0";
     if (!form.minPrice)                e.minPrice = "กรุณากรอกราคาขั้นต่ำ";
-    if (+form.minPrice < +form.cost)   e.minPrice = "ราคาขั้นต่ำ < ราคาทุน ไม่ได้";
+    if (+form.minPrice < +form.cost)   e.minPrice = "ราคาขั้นต่ำ < ราคาทุน ไม่ได้ (BR-07)";
     if (form.stock === "" || +form.stock < 0) e.stock = "สต็อกต้อง >= 0";
     return e;
   };

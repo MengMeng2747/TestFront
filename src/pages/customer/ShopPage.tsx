@@ -36,7 +36,7 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: 64, marginBottom: 16 }}>🏪</div>
           <h1 style={{ color: T.red, fontSize: 28, fontWeight: 700, margin: "0 0 8px" }}>404</h1>
-          <p style={{ color: T.muted, fontSize: 16, margin: "0 0 24px" }}>ไม่พบร้านค้านี้ในระบบ</p>
+          <p style={{ color: T.muted, fontSize: 16, margin: "0 0 24px" }}>ไม่พบร้านค้านี้ในระบบ (BR-24)</p>
           <button onClick={() => navigate("/")}
             style={{ padding: "10px 22px", background: T.accent, border: "none", borderRadius: 8, color: "#0d1117", fontWeight: 700, cursor: "pointer", ...F }}>
             กลับหน้าหลัก
@@ -72,7 +72,7 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
     if (!form.address.trim()) e.address = "กรุณากรอกที่อยู่จัดส่ง";
     cart.forEach(c => {
       if (c.qty > c.product.stock)
-        e[`stock_${c.product.id}`] = `${c.product.name}: เหลือเพียง ${c.product.stock} ชิ้น`;
+        e[`stock_${c.product.id}`] = `${c.product.name}: เหลือเพียง ${c.product.stock} ชิ้น (BR-27)`;
     });
     return e;
   };
@@ -254,7 +254,15 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
                     {f.label} <span style={{ color: T.red }}>*</span>
                   </label>
                   <input type={f.type} value={(form as any)[f.key]}
-                    onChange={e => setForm(p => ({ ...p, [f.key]: e.target.value }))}
+                    onChange={e => {
+                      if (f.key === "phone") {
+                        setForm(p => ({ ...p, [f.key]: e.target.value.replace(/\D/g, "").slice(0, 10) }));
+                      } else {
+                        setForm(p => ({ ...p, [f.key]: e.target.value }));
+                      }
+                    }}
+                    maxLength={f.key === "phone" ? 10 : undefined}
+                    inputMode={f.key === "phone" ? "numeric" : undefined}
                     placeholder={f.placeholder}
                     style={{ width: "100%", padding: "10px 12px", background: T.bg, border: `1px solid ${errors[f.key] ? T.red : T.border}`, borderRadius: 8, color: T.text, fontSize: 14, ...F, boxSizing: "border-box", outline: "none" }} />
                   {errors[f.key] && <p style={{ color: T.red, fontSize: 12, margin: "4px 0 0", ...F }}>{errors[f.key]}</p>}

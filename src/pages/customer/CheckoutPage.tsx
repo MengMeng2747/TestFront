@@ -47,7 +47,7 @@ export const CheckoutPage: FC<CheckoutPageProps> = ({ resellers, shopProducts, o
     if (!form.phone || !/^\d{10}$/.test(form.phone.replace(/-/g, ""))) e.phone = "เบอร์โทรต้องเป็นตัวเลข 10 หลัก";
     if (!form.address.trim()) e.address = "กรุณากรอกที่อยู่จัดส่ง";
     if (qty < 1)              e.qty     = "จำนวนขั้นต่ำ 1 ชิ้น";
-    if (qty > product.stock)  e.qty     = `สินค้าไม่เพียงพอ — มีเหลือ ${product.stock} ชิ้น`; // BR-27
+    if (qty > product.stock)  e.qty     = `สินค้าไม่เพียงพอ — มีเหลือ ${product.stock} ชิ้น (BR-27)`; // BR-27
     return e;
   };
 
@@ -146,7 +146,16 @@ export const CheckoutPage: FC<CheckoutPageProps> = ({ resellers, shopProducts, o
               <input
                 type={f.type}
                 value={(form as any)[f.key]}
-                onChange={e => set(f.key, e.target.value)}
+                onChange={e => {
+                  // ✅ phone: รับแค่ตัวเลข ไม่เกิน 10 หลัก
+                  if (f.key === "phone") {
+                    const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                    set(f.key, digits);
+                  } else {
+                    set(f.key, e.target.value);
+                  }
+                }}
+                maxLength={f.key === "phone" ? 10 : undefined}
                 placeholder={f.placeholder}
                 style={{ width: "100%", padding: "10px 12px", background: T.bg, border: `1px solid ${errors[f.key] ? T.red : T.border}`, borderRadius: 8, color: T.text, fontSize: 14, ...F, boxSizing: "border-box", outline: "none" }}
               />

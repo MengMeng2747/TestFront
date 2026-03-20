@@ -10,7 +10,7 @@ interface NavItem {
 }
 
 const navItems: NavItem[] = [
-  { id: "dashboard", label: "Dashboard", icon: "⊞" },
+  { id: "dashboard", label: "Dashboard", icon: "📊" },
   { id: "products", label: "จัดการสินค้า", icon: "📦" },
   { id: "resellers", label: "จัดการตัวแทน", icon: "👥" },
   { id: "orders", label: "จัดการออเดอร์", icon: "🛒" },
@@ -59,7 +59,7 @@ export const AdminSidebar: FC<AdminSidebarProps> = ({
         gap: 10,
       }}
     >
-      <span style={{ fontSize: 30, flexShrink: 0 }}>🛡️</span>
+      <span style={{ fontSize: 30, flexShrink: 0 }}>🧑🏻‍💻</span>
       <div>
         <div style={{ color: T.text, fontWeight: 700, fontSize: 20, ...F }}>
           Admin
@@ -169,7 +169,7 @@ export const AdminSidebar: FC<AdminSidebarProps> = ({
           ...F,
         }}
       >
-        <span style={{ fontSize: 16 }}>⏻</span>
+        <span style={{ fontSize: 16 }}>➜]</span>
         <span style={{ fontSize: 13 }}>ออกจากระบบ</span>
       </button>
     </div>

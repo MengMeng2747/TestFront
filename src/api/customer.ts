@@ -37,6 +37,7 @@ export interface TrackOrderAPI {
   status:          string;
   totalAmount:     number;
   createdAt:       string;
+  shopName:        string;
   items:           TrackOrderItemAPI[];
 }
 

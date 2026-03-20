@@ -27,11 +27,11 @@ export const RegisterPage: FC<RegisterPageProps> = ({ onRegister, onGoLogin, exi
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = "กรุณากรอกชื่อ-นามสกุล";
     if (!form.email || !/\S+@\S+\.\S+/.test(form.email)) e.email = "รูปแบบ Email ไม่ถูกต้อง";
-    if (existingResellers.some(r => r.email === form.email)) e.email = "อีเมลนี้ถูกใช้งานแล้ว";       // BR-13
+    if (existingResellers.some(r => r.email === form.email)) e.email = "อีเมลนี้ถูกใช้งานแล้ว (BR-13)";       // BR-13
     if (!form.phone || !/^\d{10}$/.test(form.phone.replace(/-/g, ""))) e.phone = "เบอร์โทรต้องเป็นตัวเลข 10 หลัก";
     if (!form.shopName.trim()) e.shopName = "กรุณากรอกชื่อร้านค้า";
     const slug = form.shopName.toLowerCase().replace(/\s+/g, "");
-    if (existingResellers.some(r => r.shopSlug === slug)) e.shopName = "ชื่อร้านนี้ถูกใช้แล้ว";        // BR-14
+    if (existingResellers.some(r => r.shopSlug === slug)) e.shopName = "ชื่อร้านนี้ถูกใช้แล้ว (BR-14)";        // BR-14
     if (!form.address.trim()) e.address = "กรุณากรอกที่อยู่";
     if (!form.password || form.password.length < 8) e.password = "รหัสผ่านต้องอย่างน้อย 8 ตัวอักษร";
     if (form.password !== form.confirmPassword) e.confirmPassword = "รหัสผ่านไม่ตรงกัน";
@@ -76,7 +76,7 @@ export const RegisterPage: FC<RegisterPageProps> = ({ onRegister, onGoLogin, exi
                 <Inp value={form.name} onChange={e => set("name", e.target.value)} placeholder="ชื่อ นามสกุล" error={errors.name} />
               </FieldWrap>
               <FieldWrap label="เบอร์โทรศัพท์" required error={errors.phone}>
-                <Inp value={form.phone} onChange={e => set("phone", e.target.value)} placeholder="0812345678" error={errors.phone} />
+                <Inp value={form.phone} onChange={e => set("phone", e.target.value.replace(/\D/g, "").slice(0, 10))} placeholder="0812345678" maxLength={10} inputMode="numeric" error={errors.phone} />
               </FieldWrap>
             </div>
 

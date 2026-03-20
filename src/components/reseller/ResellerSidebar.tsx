@@ -6,11 +6,11 @@ import type { ResellerPageId, ResellerUser } from "../../types";
 interface NavItem { id: ResellerPageId; label: string; icon: string; }
 
 const navItems: NavItem[] = [
-  { id: "dashboard",    label: "Dashboard",       icon: "⊞" },
-  { id: "catalog",      label: "เลือกสินค้า",     icon: "🏷️" },
+  { id: "dashboard",    label: "Dashboard",       icon: "📊" },
+  { id: "catalog",      label: "เลือกสินค้า",     icon: "🛍️" },
   { id: "my-products",  label: "สินค้าในร้านฉัน", icon: "📦" },
   { id: "orders",       label: "ออเดอร์ของฉัน",   icon: "🛒" },
-  { id: "wallet",       label: "Wallet กำไร",      icon: "💰" },
+  { id: "wallet",       label: "Wallet กำไร",      icon: "💸" },
 ];
 
 interface ResellerSidebarProps {
@@ -72,7 +72,7 @@ export const ResellerSidebar: FC<ResellerSidebarProps> = ({
       {/* Logout */}
       <button onClick={onLogout}
         style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", padding: "10px 12px", justifyContent: "flex-start", borderRadius: 8, border: "none", cursor: "pointer", background: "transparent", color: T.muted, ...F }}>
-        <span style={{ fontSize: 16 }}>⏻</span>
+        <span style={{ fontSize: 16 }}>➜]</span>
         <span style={{ fontSize: 13 }}>ออกจากระบบ</span>
       </button>
     </div>

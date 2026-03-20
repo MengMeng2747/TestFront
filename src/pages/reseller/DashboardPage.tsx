@@ -1,5 +1,5 @@
 // ─── pages/reseller/DashboardPage.tsx ─────────────────────────────────────────
-import { FC } from "react";
+import { FC, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { StatCard, PageHeader, EmptyState } from "../../components/Layout";
 import { Table, Tr, Td }                   from "../../components/Table";
@@ -13,9 +13,10 @@ interface DashboardPageProps {
   shopProducts:  ShopProduct[];
   orders:        Order[];
   walletEntries: WalletEntry[];
+  chart?:        ReactNode; // ✅ รับ chart จาก App.tsx
 }
 
-export const DashboardPage: FC<DashboardPageProps> = ({ user, shopProducts, orders, walletEntries }) => {
+export const DashboardPage: FC<DashboardPageProps> = ({ user, shopProducts, orders, walletEntries, chart }) => {
   const navigate     = useNavigate();
   const myOrders     = orders.filter(o => o.resellerId === user.id);
   const totalProfit  = walletEntries.filter(w => myOrders.some(o => o.id === w.orderId)).reduce((s, w) => s + w.profit, 0);
@@ -33,7 +34,6 @@ export const DashboardPage: FC<DashboardPageProps> = ({ user, shopProducts, orde
           <div style={{ color: T.muted, fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: ".07em", ...F, marginBottom: 4 }}>ลิงก์ร้านของคุณ</div>
           <div style={{ color: T.accent, fontSize: 15, fontWeight: 700, ...F }}>{shopUrl}</div>
         </div>
-        {/* ปุ่มเข้าร้าน */}
         <Btn variant="primary" icon="🌐" onClick={() => navigate(shopUrl)}>
           เข้าดูหน้าร้าน
         </Btn>
@@ -48,6 +48,9 @@ export const DashboardPage: FC<DashboardPageProps> = ({ user, shopProducts, orde
         <StatCard label="ออเดอร์รอจัดส่ง"   value={pendingCount}                        sub="รอ Admin"          accent={T.yellow} icon="⏳" />
         <StatCard label="สินค้าในร้าน"       value={shopProducts.length}                 sub="รายการที่เปิดขาย"  accent={T.accent} icon="📦" />
       </div>
+
+      {/* ✅ แสดงกราฟที่ส่งมาจาก App.tsx */}
+      {chart}
 
       <h3 style={{ color: T.text, fontSize: 15, fontWeight: 600, marginBottom: 14, ...F }}>ออเดอร์ล่าสุด</h3>
       {myOrders.length === 0
