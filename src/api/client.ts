@@ -1,0 +1,53 @@
+// ─── api/client.ts ────────────────────────────────────────────────────────────
+// Centralized fetch wrapper สำหรับเชื่อม Spring Boot Backend
+
+// ✅ ใช้ /api เท่านั้น — ให้ Vite proxy ส่งต่อไป localhost:8081
+// ❌ ห้ามใส่ http://localhost:8081 เพราะจะข้าม proxy → โดน CORS block
+export const BASE_URL = "/api";
+
+interface FetchOptions extends RequestInit {
+  body?: any;
+}
+
+async function request<T>(path: string, options: FetchOptions = {}): Promise<T> {
+  const { body, ...rest } = options;
+
+  const res = await fetch(`${BASE_URL}${path}`, {
+    ...rest,
+    credentials: "include", // ส่ง cookie/session ไปด้วยทุก request
+    headers: {
+      "Content-Type": "application/json",
+      ...rest.headers,
+    },
+    body: body !== undefined ? JSON.stringify(body) : undefined,
+  });
+
+  if (!res.ok) {
+    // พยายาม parse error message จาก backend
+    let errMsg = `HTTP ${res.status}`;
+    try {
+      const errJson = await res.json();
+      errMsg = errJson.error || errJson.message || errMsg;
+    } catch {
+      // ignore
+    }
+    throw new Error(errMsg);
+  }
+
+  // ถ้า response เป็น empty string (เช่น logout) ให้ return null
+  const text = await res.text();
+  if (!text) return null as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch {
+    return text as unknown as T;
+  }
+}
+
+export const api = {
+  get:    <T>(path: string)              => request<T>(path, { method: "GET"    }),
+  post:   <T>(path: string, body?: any) => request<T>(path, { method: "POST",   body }),
+  put:    <T>(path: string, body?: any) => request<T>(path, { method: "PUT",    body }),
+  delete: <T>(path: string)             => request<T>(path, { method: "DELETE"  }),
+};

@@ -1,0 +1,92 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* ── Default: Light theme CSS variables ────────────────── */
+:root {
+  --bg:       #f5f7fa;
+  --surface:  #ffffff;
+  --surface2: #f0f4f8;
+  --border:   #d0d7de;
+  --border2:  #e5e9f0;
+  --text:     #1f2328;
+  --muted:    #57606a;
+  --dim:      #8c959f;
+}
+
+/* ── Smooth transition เมื่อเปลี่ยน theme ─────────────── */
+*, *::before, *::after {
+  transition:
+    background-color 0.2s ease,
+    border-color     0.2s ease,
+    color            0.2s ease;
+}
+
+button, a, input, textarea, select {
+  transition:
+    background-color 0.2s ease,
+    border-color     0.2s ease,
+    color            0.2s ease,
+    opacity          0.15s ease,
+    transform        0.15s ease;
+}
+
+body {
+  background: var(--bg);
+  overflow-x: hidden;
+}
+
+/* ── Responsive: ซ่อน scrollbar แนวนอนบน body ─────────── */
+html { overflow-x: hidden; }
+
+/* ── Table responsive ──────────────────────────────────── */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Responsive grid helpers ───────────────────────────── */
+@media (max-width: 767px) {
+  /* stat card grid → 2 col บน mobile */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* product grid → 2 col บน mobile */
+  .product-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* form 2-col → 1 col */
+  .form-grid-2 {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* table font เล็กลง */
+  table td, table th {
+    padding: 10px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* page header stack */
+  .page-header-row {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 10px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  /* stat card → 1 col บน mobile เล็ก */
+  .stat-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* product grid → 1 col */
+  .product-grid {
+    grid-template-columns: 1fr !important;
+  }
+}
