@@ -1,7 +1,7 @@
 // ─── api/client.ts ────────────────────────────────────────────────────────────
 // Centralized fetch wrapper สำหรับเชื่อม Spring Boot Backend
 
-export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
+export const BASE_URL = "/api";
 
 interface FetchOptions extends RequestInit {
   body?: any;
@@ -12,7 +12,7 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
 
   const res = await fetch(`${BASE_URL}${path}`, {
     ...rest,
-    credentials: "include", // ส่ง cookie/session ไปด้วยทุก request
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
       ...rest.headers,
@@ -21,7 +21,6 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
   });
 
   if (!res.ok) {
-    // พยายาม parse error message จาก backend
     let errMsg = `HTTP ${res.status}`;
     try {
       const errJson = await res.json();
@@ -32,7 +31,6 @@ async function request<T>(path: string, options: FetchOptions = {}): Promise<T> 
     throw new Error(errMsg);
   }
 
-  // ถ้า response เป็น empty string (เช่น logout) ให้ return null
   const text = await res.text();
   if (!text) return null as T;
 

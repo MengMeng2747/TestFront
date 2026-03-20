@@ -1,7 +1,6 @@
 // ─── api/auth.ts ──────────────────────────────────────────────────────────────
 import { api } from "./client";
 
-// ── Admin Login ────────────────────────────────────────────
 export interface AdminLoginPayload {
   email: string;
   password: string;
@@ -13,16 +12,14 @@ export const adminLogin = (payload: AdminLoginPayload): Promise<string> =>
 export const adminLogout = (): Promise<string> =>
   api.post<string>("/admin/logout");
 
-// ── Reseller Login ─────────────────────────────────────────
 export interface ResellerLoginPayload {
   email: string;
   password: string;
 }
 
 export const resellerLogin = (payload: ResellerLoginPayload): Promise<string> =>
-  api.post<string>("/login", payload); // ✅ ลบ /api ออก
+  api.post<string>("/login", payload);
 
-// ── Reseller Register ──────────────────────────────────────
 export interface RegisterPayload {
   name: string;
   email: string;
@@ -34,9 +31,8 @@ export interface RegisterPayload {
 }
 
 export const resellerRegister = (payload: RegisterPayload): Promise<string> =>
-  api.post<string>("/register", payload); // ✅ ลบ /api ออก
+  api.post<string>("/register", payload);
 
-// ── Get current reseller session ───────────────────────────
 export interface MeRes {
   id:       number;
   name:     string;
@@ -49,4 +45,4 @@ export interface MeRes {
 }
 
 export const fetchMe = (): Promise<MeRes> =>
-  api.get<MeRes>("/me"); // ✅ ลบ /api ออก
+  api.get<MeRes>("/me");
