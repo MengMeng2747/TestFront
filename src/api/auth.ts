@@ -20,7 +20,7 @@ export interface ResellerLoginPayload {
 }
 
 export const resellerLogin = (payload: ResellerLoginPayload): Promise<string> =>
-  api.post<string>("/login", payload); // ✅ ลบ /api ออก (BASE_URL = "/api" อยู่แล้ว)
+  api.post<string>("/login", payload); // ✅ ลบ /api ออก
 
 // ── Reseller Register ──────────────────────────────────────
 export interface RegisterPayload {

@@ -1,9 +1,7 @@
 // ─── api/client.ts ────────────────────────────────────────────────────────────
 // Centralized fetch wrapper สำหรับเชื่อม Spring Boot Backend
 
-// ✅ ใช้ /api เท่านั้น — ให้ Vite proxy ส่งต่อไป localhost:8081
-// ❌ ห้ามใส่ http://localhost:8081 เพราะจะข้าม proxy → โดน CORS block
-export const BASE_URL = "/api";
+export const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8081";
 
 interface FetchOptions extends RequestInit {
   body?: any;
