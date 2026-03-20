@@ -90,7 +90,11 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
     }
   };
 
+  const [search, setSearch] = useState("");
   const myProducts = shopProducts.filter(sp => sp.shopId === reseller.id || sp.shopId === 0);
+  const filteredProducts = myProducts.filter(p =>
+    p.name.toLowerCase().includes(search.toLowerCase())
+  );
 
   return (
     <div style={{ minHeight: "100vh", background: T.bg, ...F }}>
@@ -113,14 +117,36 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
 
       {/* ── Products (เดิม + ตะกร้า) ─────────────────────────────────────── */}
       <div style={{ maxWidth: 960, margin: "0 auto", padding: "32px 24px", paddingBottom: cart.length > 0 ? 100 : 32 }}>
+        {/* ✅ Search Box */}
+        <div style={{ marginBottom: 24, position: "relative" }}>
+          <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", fontSize: 16, pointerEvents: "none" }}>🔍</span>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="ค้นหาสินค้า..."
+            style={{ width: "100%", padding: "11px 14px 11px 42px", background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, color: T.text, fontSize: 14, ...F, boxSizing: "border-box", outline: "none" }}
+          />
+          {search && (
+            <button onClick={() => setSearch("")}
+              style={{ position: "absolute", right: 12, top: "50%", transform: "translateY(-50%)", background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 16, padding: 0 }}>
+              ✕
+            </button>
+          )}
+        </div>
+
         {myProducts.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 24px", color: T.muted }}>
             <div style={{ fontSize: 48, marginBottom: 12 }}>📦</div>
             <p style={{ fontSize: 16 }}>ยังไม่มีสินค้าในร้านนี้</p>
           </div>
+        ) : filteredProducts.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "40px 24px", color: T.muted }}>
+            <div style={{ fontSize: 40, marginBottom: 12 }}>🔍</div>
+            <p style={{ fontSize: 15, ...F }}>ไม่พบสินค้า "{search}"</p>
+          </div>
         ) : (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(220px,1fr))", gap: 20 }}>
-            {myProducts.map(sp => {
+            {filteredProducts.map(sp => {
               const outOfStock = sp.stock === 0; // BR-25
               const qty        = cartQty(sp.id);
 
@@ -256,7 +282,7 @@ export const ShopPage: FC<ShopPageProps> = ({ resellers, shopProducts, slug, onP
                   <input type={f.type} value={(form as any)[f.key]}
                     onChange={e => {
                       if (f.key === "phone") {
-                        setForm(p => ({ ...p, [f.key]: e.target.value.replace(/\D/g, "").slice(0, 10) }));
+                        setForm(p => ({ ...p, [f.key]: e.target.value.replace(/[^0-9]/g, "").slice(0, 10) }));
                       } else {
                         setForm(p => ({ ...p, [f.key]: e.target.value }));
                       }

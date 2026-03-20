@@ -41,7 +41,7 @@ export const OrdersPage: FC<OrdersPageProps> = ({ orders, setOrders }) => {
     setOrders(os => os.map(x => x.id === o.id ? { ...x, status: next } : x));
     if (next === "shipped") {
       setWallet(l => [...l, { id: Date.now(), orderId: o.id, shop: o.shopName, profit, at: new Date().toLocaleTimeString("th-TH") }]);
-      showToast("success", `บวกกำไร ฿${profit.toLocaleString()} เข้า Wallet "${o.shopName}"`);
+      showToast("success", `บวกกำไร ฿${profit.toLocaleString()} เข้า Wallet "${o.shopName}" (BR-10/11)`);
     } else {
       showToast("success", `ออเดอร์ ${o.id} เสร็จสมบูรณ์`);
     }
@@ -67,9 +67,39 @@ export const OrdersPage: FC<OrdersPageProps> = ({ orders, setOrders }) => {
 
   const fmt = (d: string) => new Date(d).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric" });
 
+  // ── Export CSV ────────────────────────────────────────────
+  const exportCSV = (): void => {
+    const headers = ["เลขออเดอร์","ร้านตัวแทน","ลูกค้า","ยอดขาย","กำไร","สถานะ","วันที่"];
+    const rows = orders.map(o => [
+      o.id,
+      o.shopName,
+      o.customer,
+      o.totalSale,
+      o.totalProfit,
+      o.status,
+      (() => { const d = new Date(o.date); return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" + String(d.getDate()).padStart(2,"0") + " " + String(d.getHours()).padStart(2,"0") + ":" + String(d.getMinutes()).padStart(2,"0"); })(),
+    ]);
+    const csv = [headers, ...rows].map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(",")).join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8;" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `orders_${new Date().toISOString().slice(0,10)}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("success", `Export สำเร็จ ${orders.length} รายการ`);
+  };
+
   return (
     <div>
-      <PageHeader title="จัดการออเดอร์"/>
+      <PageHeader
+        title="จัดการออเดอร์"
+        action={
+          <Btn variant="info" icon="📥" onClick={exportCSV}>
+            Export CSV
+          </Btn>
+        }
+      />
       {toast}
 
       {/* Status flow */}
@@ -173,12 +203,10 @@ export const OrdersPage: FC<OrdersPageProps> = ({ orders, setOrders }) => {
         {detail && (
           <div>
             {([
-              ["เลขออเดอร์",   detail.id],
-              ["ร้านตัวแทน",   detail.shopName || "—"],
-              ["ลูกค้า",       detail.customer],
-              ["สินค้า/จำนวน", `${detail.product} × ${detail.qty} ชิ้น`],
-              ["ยอดรวม",       `฿${detail.totalSale.toLocaleString()} บาท`],
-              ["วันที่สั่ง",   new Date(detail.date).toLocaleString("th-TH")],
+              ["เลขออเดอร์",  detail.id],
+              ["ร้านตัวแทน",  detail.shopName || "—"],
+              ["ลูกค้า",      detail.customer],
+              ["วันที่สั่ง",  new Date(detail.date).toLocaleString("th-TH")],
             ] as [string,string][]).map(([k,v]) => (
               <div key={k} style={{ display: "flex", padding: "9px 0", borderBottom: `1px solid ${T.border2}`, gap: 12 }}>
                 <span style={{ color: T.muted, fontSize: 12, width: 110, flexShrink: 0, ...F }}>{k}</span>
@@ -189,14 +217,33 @@ export const OrdersPage: FC<OrdersPageProps> = ({ orders, setOrders }) => {
               <span style={{ color: T.muted, fontSize: 12, width: 110, flexShrink: 0, ...F }}>สถานะ</span>
               <StatusBadge status={detail.status} />
             </div>
-            {/* BR-11 breakdown */}
-            <div style={{ background: "rgba(240,136,62,.1)", border: "1px solid rgba(240,136,62,.25)", borderRadius: 8, padding: "12px 14px", marginTop: 14 }}>
-              <div style={{ color: T.orange, fontSize: 12, fontWeight: 700, marginBottom: 4, ...F }}>📊 คำนวณกำไร</div>
-              <div style={{ color: T.muted, fontSize: 12, ...F }}>
-                (฿{(detail.totalSale/detail.qty).toFixed(0)} − ฿{detail.cost}) × {detail.qty} ชิ้น
+
+            {/* ✅ รายการสินค้าทุกชิ้น */}
+            <div style={{ marginTop: 14 }}>
+              <div style={{ color: T.muted, fontSize: 12, fontWeight: 700, marginBottom: 8, ...F }}>รายการสินค้า</div>
+              {detail.items && detail.items.length > 0 ? (
+                detail.items.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: T.surface2, borderRadius: 7, marginBottom: 6 }}>
+                    <span style={{ color: T.text, fontSize: 13, ...F }}>{item.productName} × {item.qty}</span>
+                    <span style={{ color: T.green, fontWeight: 700, fontSize: 13, ...F }}>
+                      ฿{(item.sellingPrice * item.qty).toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: T.muted, fontSize: 12, ...F }}>ไม่มีข้อมูลสินค้า</div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
+                <span style={{ color: T.muted, fontSize: 13, ...F }}>ยอดรวม</span>
+                <span style={{ color: T.green, fontWeight: 700, fontSize: 15, ...F }}>฿{detail.totalSale.toLocaleString()} บาท</span>
               </div>
-              <div style={{ color: T.orange, fontSize: 20, fontWeight: 700, marginTop: 6, ...F }}>
-                = ฿{(detail.totalSale - detail.cost * detail.qty).toLocaleString()}
+            </div>
+
+            {/* กำไร */}
+            <div style={{ background: "rgba(240,136,62,.1)", border: "1px solid rgba(240,136,62,.25)", borderRadius: 8, padding: "12px 14px", marginTop: 10 }}>
+              <div style={{ color: T.orange, fontSize: 12, fontWeight: 700, marginBottom: 4, ...F }}>💰 กำไรตัวแทน</div>
+              <div style={{ color: T.orange, fontSize: 20, fontWeight: 700, ...F }}>
+                ฿{detail.totalProfit.toLocaleString()}
               </div>
             </div>
           </div>

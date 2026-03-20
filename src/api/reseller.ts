@@ -25,16 +25,25 @@ export interface AddProductPayload {
   selling_price: number;
 }
 
+export interface ResellerOrderItemAPI {
+  productName:  string;
+  quantity:     number;
+  sellingPrice: number;
+}
+
 export interface ResellerOrderAPI {
-  orderId:      number;
-  orderNumber:  string | null;   // ← เลขออเดอร์จริง
-  customerName: string;
-  productName:  string | null;
-  quantity:     number | null;
-  sellingPrice: number | null;
-  totalAmount:  number | null;   // ← ยอดขายรวม
-  status:       string;
-  createdAt:    string | null;   // ← วันที่จริง
+  orderId:         number;
+  orderNumber:     string | null;
+  customerName:    string;
+  customerPhone:   string | null;   // ✅ เพิ่ม
+  shippingAddress: string | null;   // ✅ เพิ่ม
+  productName:     string | null;
+  quantity:        number | null;
+  sellingPrice:    number | null;
+  totalAmount:     number | null;
+  status:          string;
+  createdAt:       string | null;
+  items:           ResellerOrderItemAPI[]; // ✅ เพิ่ม
 }
 
 export interface WalletLogAPI {

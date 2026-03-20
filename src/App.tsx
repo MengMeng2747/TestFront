@@ -117,9 +117,12 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
   const { toggleTheme, theme } = useTheme();
   const navigate   = useNavigate();
   const location   = useLocation();
-  const [pendingCount,  setPendingCount]  = useState(0);
-  const [sidebarOpen,   setSidebarOpen]   = useState(false);
-  const [isMobile,      setIsMobile]      = useState(() => window.innerWidth < 768);
+  const [pendingCount,    setPendingCount]    = useState(0);
+  const [newOrderCount,   setNewOrderCount]   = useState(0);  // ✅ แจ้งเตือนออเดอร์ใหม่
+  const [lastOrderCount,  setLastOrderCount]  = useState(-1); // ใช้ track จำนวน
+  const [notifToast,      setNotifToast]      = useState<string | null>(null); // ✅ toast popup
+  const [sidebarOpen,     setSidebarOpen]     = useState(false);
+  const [isMobile,        setIsMobile]        = useState(() => window.innerWidth < 768);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -143,6 +146,30 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
       .then(rs => setPendingCount(rs.filter(r => r.status === "pending").length))
       .catch(() => {});
   }, [location.pathname]);
+
+  // ✅ Poll ออเดอร์ใหม่ทุก 30 วิ — Email Notification จำลอง
+  useEffect(() => {
+    let lastCount = -1;
+    const check = () => {
+      fetchAllOrders()
+        .then(ords => {
+          const pending = ords.filter(o => o.status === "pending").length;
+          if (lastCount >= 0 && pending > lastCount) {
+            const diff = pending - lastCount;
+            setNewOrderCount(n => n + diff);
+            // ✅ แสดง toast popup แจ้งเตือน
+            setNotifToast(`🛒 มีออเดอร์ใหม่ ${diff} รายการ! กรุณาตรวจสอบ`);
+            setTimeout(() => setNotifToast(null), 5000);
+          }
+          lastCount = pending;
+          setLastOrderCount(pending);
+        })
+        .catch(() => {});
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div style={{ display: "flex", height: "100vh", overflow: "hidden", background: T.bg }}>
@@ -176,9 +203,28 @@ const AdminLayout = ({ children }: { children: ReactNode }) => {
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        <AdminTopbar page={currentPage} onToggle={() => setSidebarOpen(o => !o)} />
+        <AdminTopbar page={currentPage} onToggle={() => setSidebarOpen(o => !o)} newOrderCount={newOrderCount} onClearNotif={() => setNewOrderCount(0)} />
         <main style={{ flex: 1, padding: isMobile ? "16px" : "24px 28px", overflowY: "auto" }}>{children}</main>
       </div>
+
+      {/* ✅ Toast Notification popup */}
+      {notifToast && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+          background: T.surface, border: `1px solid ${T.yellow}`,
+          borderRadius: 12, padding: "14px 18px", boxShadow: "0 8px 32px rgba(0,0,0,.5)",
+          display: "flex", alignItems: "center", gap: 12, maxWidth: 340,
+          animation: "slideIn .3s ease",
+        }}>
+          <span style={{ fontSize: 22 }}>🔔</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: T.text, fontWeight: 700, fontSize: 13, ...F }}>{notifToast}</div>
+            <div style={{ color: T.muted, fontSize: 11, marginTop: 2, ...F }}>คลิก bell เพื่อดูรายละเอียด</div>
+          </div>
+          <button onClick={() => setNotifToast(null)}
+            style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 16, padding: 0, flexShrink: 0 }}>✕</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -191,8 +237,11 @@ const ResellerLayout = ({ children, resellerInfo }: { children: ReactNode; resel
   const { toggleTheme, theme } = useTheme();
   const navigate   = useNavigate();
   const location   = useLocation();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isMobile,    setIsMobile]    = useState(() => window.innerWidth < 768);
+  const [sidebarOpen,       setSidebarOpen]       = useState(false);
+  const [isMobile,          setIsMobile]          = useState(() => window.innerWidth < 768);
+  const [resellerNotif,     setResellerNotif]     = useState(0);       // ✅ badge
+  const [resellerToast,     setResellerToast]     = useState<string | null>(null); // ✅ toast
+  const [lastShippedCount,  setLastShippedCount]  = useState(-1);
 
   useEffect(() => {
     const onResize = () => setIsMobile(window.innerWidth < 768);
@@ -201,6 +250,30 @@ const ResellerLayout = ({ children, resellerInfo }: { children: ReactNode; resel
   }, []);
 
   useEffect(() => { if (isMobile) setSidebarOpen(false); }, [location.pathname]);
+
+  // ✅ Poll ออเดอร์ของ reseller ทุก 30 วิ
+  useEffect(() => {
+    if (!resellerInfo?.id) return;
+    let lastCount = -1;
+    const check = () => {
+      fetchResellerOrders(resellerInfo.id)
+        .then((ords: any[]) => {
+          const shipped = ords.filter(o => o.status === "shipped" || o.status === "completed").length;
+          if (lastCount >= 0 && shipped > lastCount) {
+            const diff = shipped - lastCount;
+            setResellerNotif(n => n + diff);
+            setResellerToast(`📦 ออเดอร์ของคุณถูกจัดส่งแล้ว ${diff} รายการ!`);
+            setTimeout(() => setResellerToast(null), 5000);
+          }
+          lastCount = shipped;
+          setLastShippedCount(shipped);
+        })
+        .catch(() => {});
+    };
+    check();
+    const interval = setInterval(check, 30000);
+    return () => clearInterval(interval);
+  }, [resellerInfo?.id]);
 
   const pageMap: Record<string, any> = {
     "/reseller/dashboard":   "dashboard",
@@ -241,9 +314,27 @@ const ResellerLayout = ({ children, resellerInfo }: { children: ReactNode; resel
       </div>
 
       <div style={{ flex: 1, display: "flex", flexDirection: "column", minWidth: 0, overflow: "hidden" }}>
-        <ResellerTopbar page={currentPage} onToggle={() => setSidebarOpen(o => !o)} user={resellerInfo} />
+        <ResellerTopbar page={currentPage} onToggle={() => setSidebarOpen(o => !o)} user={resellerInfo} newOrderCount={resellerNotif} onClearNotif={() => setResellerNotif(0)} />
         <main style={{ flex: 1, padding: isMobile ? "16px" : "24px 28px", overflowY: "auto" }}>{children}</main>
       </div>
+
+      {/* ✅ Reseller Toast Notification */}
+      {resellerToast && (
+        <div style={{
+          position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+          background: T.surface, border: `1px solid ${T.accent}`,
+          borderRadius: 12, padding: "14px 18px", boxShadow: "0 8px 32px rgba(0,0,0,.5)",
+          display: "flex", alignItems: "center", gap: 12, maxWidth: 340,
+        }}>
+          <span style={{ fontSize: 22 }}>🔔</span>
+          <div style={{ flex: 1 }}>
+            <div style={{ color: T.text, fontWeight: 700, fontSize: 13, ...F }}>{resellerToast}</div>
+            <div style={{ color: T.muted, fontSize: 11, marginTop: 2, ...F }}>ไปที่ออเดอร์เพื่อดูรายละเอียด</div>
+          </div>
+          <button onClick={() => setResellerToast(null)}
+            style={{ background: "none", border: "none", color: T.muted, cursor: "pointer", fontSize: 16, padding: 0, flexShrink: 0 }}>✕</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -287,15 +378,19 @@ const AdminDashboardConnected = () => {
 
   return (
     <div>
+      <div style={{ marginBottom: 20 }}>
+        <h2 style={{ color: T.text, fontSize: 20, fontWeight: 700, margin: "0 0 4px", ...F }}>แดชบอร์ด</h2>
+        <p style={{ color: T.muted, fontSize: 12, margin: 0, ...F }}>ภาพรวมระบบ ResellerHub</p>
+      </div>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14, marginBottom: 28 }}>
         {[
           { label: "ยอดขายรวม",          value: `฿${Number(dashboard?.totalSales   ?? 0).toLocaleString()}`,  sub: "shipped+completed", accent: "#3fb950", icon: "📈" },
           { label: "กำไรจ่ายตัวแทน",     value: `฿${Number(dashboard?.totalProfit  ?? 0).toLocaleString()}`,  sub: "บวก Wallet แล้ว",   accent: "#f0883e", icon: "💰" },
-          { label: "รายได้ Admin (สุทธิ)", value: `฿${(Number(dashboard?.totalSales ?? 0) - Number(dashboard?.totalProfit ?? 0)).toLocaleString()}`, sub: "ยอดขาย − กำไรตัวแทน", accent: "#58a6ff", icon: "🏦" },
           { label: "ออเดอร์ทั้งหมด",     value: Number(dashboard?.totalOrders   ?? 0),                        sub: `รอ ${dashboard?.pendingOrders ?? 0} รายการ`, accent: "#d29922", icon: "📦" },
           { label: "รอดำเนินการ",         value: Number(dashboard?.pendingOrders ?? 0),                        sub: "ยังไม่จัดส่ง",       accent: "#f85149", icon: "⏳" },
           { label: "ตัวแทนอนุมัติแล้ว",  value: Number(dashboard?.totalResellers  ?? 0),                      sub: "Login ได้",          accent: "#58a6ff", icon: "👥" },
           { label: "ตัวแทนรออนุมัติ",    value: Number(dashboard?.pendingResellers ?? 0),                      sub: "รอตรวจสอบ",          accent: "#bc8cff", icon: "⚠️" },
+          { label: "รายได้ Admin (สุทธิ)", value: `฿${(Number(dashboard?.totalSales ?? 0) - Number(dashboard?.totalProfit ?? 0)).toLocaleString()}`, sub: "ยอดขาย − กำไรตัวแทน", accent: "#58a6ff", icon: "🏦" },
         ].map(s => (
           <div key={s.label} style={{ background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10, padding: "18px 20px", position: "relative", overflow: "hidden" }}>
             <div style={{ position: "absolute", right: 14, top: 12, fontSize: 28, opacity: .15 }}>{s.icon}</div>
@@ -539,9 +634,19 @@ const AdminProductsConnected = () => {
   const mappedOrders = orders.map(o => ({
     id: o.orderNumber, resellerId: 0, resellerName: "", shopName: "",
     customer: o.customerName, phone: o.customerPhone, address: o.shippingAddress,
-    product: "", productId: 0, items: [],
-    qty: 0, salePrice: 0, totalSale: o.totalAmount, totalProfit: o.resellerProfit,
-    cost: 0, date: o.createdAt, status: o.status as any,
+    product: o.items?.[0]?.productName ?? "",
+    productId: 0,
+    items: (o.items ?? []).map(i => ({
+      productName: i.productName,
+      qty: i.quantity,
+      sellingPrice: Number(i.sellingPrice),
+      cost: Number(i.costPrice),
+    })),
+    qty: (o.items ?? []).reduce((s, i) => s + i.quantity, 0),
+    salePrice: Number(o.items?.[0]?.sellingPrice ?? 0),
+    totalSale: o.totalAmount, totalProfit: o.resellerProfit,
+    cost: Number(o.items?.[0]?.costPrice ?? 0),
+    date: o.createdAt, status: o.status as any,
   }));
 
   const handleSetProducts = (updater: any) => {
@@ -636,9 +741,19 @@ const AdminOrdersConnected = () => {
   const mapped = orders.map(o => ({
     id: o.orderNumber, resellerId: 0, resellerName: "", shopName: o.shopName ?? `Shop #${o.shopId}`,
     customer: o.customerName, phone: o.customerPhone, address: o.shippingAddress,
-    product: "", productId: 0, items: [],
-    qty: 0, salePrice: 0, totalSale: o.totalAmount, totalProfit: o.resellerProfit,
-    cost: 0, date: o.createdAt, status: o.status as any,
+    product: o.items?.[0]?.productName ?? "",
+    productId: 0,
+    items: (o.items ?? []).map(i => ({
+      productName: i.productName,
+      qty: i.quantity,
+      sellingPrice: Number(i.sellingPrice),
+      cost: Number(i.costPrice),
+    })),
+    qty: (o.items ?? []).reduce((s, i) => s + i.quantity, 0),
+    salePrice: Number(o.items?.[0]?.sellingPrice ?? 0),
+    totalSale: o.totalAmount, totalProfit: o.resellerProfit,
+    cost: Number(o.items?.[0]?.costPrice ?? 0),
+    date: o.createdAt, status: o.status as any,
     _backendId: o.id,
   }));
 
@@ -1064,13 +1179,20 @@ const ResellerOrdersConnected = ({ session }: { session: SessionUser }) => {
       id: key,                                          // ← เลขออเดอร์จริง
       resellerId: info.id,
       resellerName: info.name, shopName: info.shopName,
-      customer: o.customerName, phone: "", address: "",
+      customer: o.customerName,
+      phone:   o.customerPhone   ?? "",   // ✅ เบอร์โทรจริง
+      address: o.shippingAddress ?? "",   // ✅ ที่อยู่จริง
       product: o.productName ?? "", productId: 0,
-      items: o.productName ? [{ productName: o.productName, qty: o.quantity ?? 0, sellingPrice: o.sellingPrice ?? 0, cost: 0 }] : [],
+      items: (o.items ?? []).map((i: any) => ({
+        productName: i.productName,
+        qty: i.quantity,
+        sellingPrice: Number(i.sellingPrice),
+        cost: 0,
+      })),
       qty: o.quantity ?? 0, salePrice: o.sellingPrice ?? 0,
-      totalSale:   Number(o.totalAmount ?? 0),           // ← ยอดขายจริง
+      totalSale:   Number(o.totalAmount ?? 0),
       totalProfit: profit, cost: 0,
-      date: o.createdAt ?? new Date().toISOString(),     // ← วันที่จริง
+      date: o.createdAt ?? new Date().toISOString(),
       status: o.status as any,
     };
   });
@@ -1236,9 +1358,19 @@ const AdminProductFormConnected = ({ mode }: { mode: "add" | "edit" }) => {
   const mappedOrders = orders.map(o => ({
     id: o.orderNumber, resellerId: 0, resellerName: "", shopName: "",
     customer: o.customerName, phone: o.customerPhone, address: o.shippingAddress,
-    product: "", productId: 0, items: [],
-    qty: 0, salePrice: 0, totalSale: o.totalAmount, totalProfit: o.resellerProfit,
-    cost: 0, date: o.createdAt, status: o.status as any,
+    product: o.items?.[0]?.productName ?? "",
+    productId: 0,
+    items: (o.items ?? []).map(i => ({
+      productName: i.productName,
+      qty: i.quantity,
+      sellingPrice: Number(i.sellingPrice),
+      cost: Number(i.costPrice),
+    })),
+    qty: (o.items ?? []).reduce((s, i) => s + i.quantity, 0),
+    salePrice: Number(o.items?.[0]?.sellingPrice ?? 0),
+    totalSale: o.totalAmount, totalProfit: o.resellerProfit,
+    cost: Number(o.items?.[0]?.costPrice ?? 0),
+    date: o.createdAt, status: o.status as any,
   }));
 
   const handleSave = async (data: any) => {

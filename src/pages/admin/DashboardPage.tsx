@@ -28,6 +28,7 @@ export const DashboardPage: FC<DashboardPageProps> = ({ products, resellers, ord
   return (
     <div>
       <PageHeader title="Dashboard"/>
+      
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(170px,1fr))", gap: 14, marginBottom: 28 }}>
         <StatCard label="ยอดขายรวม"         value={`฿${totalSale.toLocaleString()}`}   sub="shipped+completed"  accent={T.green}  icon="📈" />
         <StatCard label="สินค้าทั้งหมด"      value={totalProducts}                      sub="ในระบบ"               accent={T.accent} icon="🛍️" />

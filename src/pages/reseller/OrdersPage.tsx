@@ -21,7 +21,12 @@ export const OrdersPage: FC<OrdersPageProps> = ({ user, orders }) => {
   const [filter, setFilter] = useState<FilterId>("all");
 
   const myOrders = orders.filter(o => o.resellerId === user.id);
-  const rows     = filter === "all" ? myOrders : myOrders.filter(o => o.status === filter);
+
+  // ✅ เรียงล่าสุดขึ้นก่อน
+  const sorted = [...myOrders].sort((a, b) =>
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  );
+  const rows = filter === "all" ? sorted : sorted.filter(o => o.status === filter);
 
   const fmt = (d: string) =>
     new Date(d).toLocaleDateString("th-TH", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -85,8 +90,8 @@ export const OrdersPage: FC<OrdersPageProps> = ({ user, orders }) => {
             {([
               ["เลขออเดอร์",   detail.id],
               ["ลูกค้า",       detail.customer],
-              ["เบอร์โทร",     detail.phone],
-              ["ที่อยู่จัดส่ง", detail.address],
+              ["เบอร์โทร",     detail.phone || "—"],        // ✅ เบอร์โทร
+              ["ที่อยู่จัดส่ง", detail.address || "—"],     // ✅ ที่อยู่
               ["วันที่สั่ง",   new Date(detail.date).toLocaleString("th-TH")],
             ] as [string,string][]).map(([k,v]) => (
               <div key={k} style={{ display: "flex", padding: "9px 0", borderBottom: `1px solid ${T.border2}`, gap: 12 }}>
@@ -94,21 +99,33 @@ export const OrdersPage: FC<OrdersPageProps> = ({ user, orders }) => {
                 <span style={{ color: T.text,  fontSize: 13, ...F }}>{v}</span>
               </div>
             ))}
-            <div style={{ padding: "9px 0", borderBottom: `1px solid ${T.border2}` }}>
-              <span style={{ color: T.muted, fontSize: 12, ...F }}>สถานะ</span>
-              <div style={{ marginTop: 6 }}><StatusBadge status={detail.status} /></div>
+            <div style={{ display: "flex", padding: "9px 0", borderBottom: `1px solid ${T.border2}`, gap: 12 }}>
+              <span style={{ color: T.muted, fontSize: 12, width: 110, flexShrink: 0, ...F }}>สถานะ</span>
+              <StatusBadge status={detail.status} />
             </div>
 
+            {/* ✅ รายการสินค้าแบบ Admin */}
             <div style={{ marginTop: 14 }}>
               <div style={{ color: T.muted, fontSize: 12, fontWeight: 700, marginBottom: 8, ...F }}>รายการสินค้า</div>
-              {detail.items.map((item, i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 12px", background: T.surface2, borderRadius: 7, marginBottom: 6 }}>
-                  <span style={{ color: T.text, fontSize: 13, ...F }}>{item.productName} ×{item.qty}</span>
-                  <span style={{ color: T.green, fontWeight: 700, fontSize: 13, ...F }}>฿{(item.sellingPrice * item.qty).toLocaleString()}</span>
-                </div>
-              ))}
+              {detail.items && detail.items.length > 0 ? (
+                detail.items.map((item, i) => (
+                  <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 12px", background: T.surface2, borderRadius: 7, marginBottom: 6 }}>
+                    <span style={{ color: T.text, fontSize: 13, ...F }}>{item.productName} × {item.qty}</span>
+                    <span style={{ color: T.green, fontWeight: 700, fontSize: 13, ...F }}>
+                      ฿{(item.sellingPrice * item.qty).toLocaleString()}
+                    </span>
+                  </div>
+                ))
+              ) : (
+                <div style={{ color: T.muted, fontSize: 12, ...F }}>ไม่มีข้อมูลสินค้า</div>
+              )}
+              <div style={{ display: "flex", justifyContent: "space-between", padding: "10px 12px", borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
+                <span style={{ color: T.muted, fontSize: 13, ...F }}>ยอดรวม</span>
+                <span style={{ color: T.green, fontWeight: 700, fontSize: 15, ...F }}>฿{detail.totalSale.toLocaleString()} บาท</span>
+              </div>
             </div>
 
+            {/* กำไรของฉัน */}
             <div style={{ display: "flex", justifyContent: "space-between", padding: "12px 0", borderTop: `1px solid ${T.border}`, marginTop: 8 }}>
               <span style={{ color: T.muted, fontSize: 13, ...F }}>กำไรของฉัน</span>
               <span style={{ color: T.orange, fontWeight: 700, fontSize: 16, ...F }}>฿{detail.totalProfit.toLocaleString()}</span>

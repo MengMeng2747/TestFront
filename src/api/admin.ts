@@ -44,11 +44,18 @@ export interface ResellerAPI {
   createdAt?: string;  // ← เพิ่ม: วันที่สมัครจริงจาก DB
 }
 
+export interface OrderItemAPI {
+  productName:  string;
+  quantity:     number;
+  sellingPrice: number;
+  costPrice:    number;
+}
+
 export interface OrderAPI {
   id:              number;
   orderNumber:     string;
   shopId:          number;
-  shopName:        string;   // ← เพิ่ม: join จาก shops table
+  shopName:        string;
   customerName:    string;
   customerPhone:   string;
   shippingAddress: string;
@@ -56,6 +63,7 @@ export interface OrderAPI {
   resellerProfit:  number;
   status:          string;
   createdAt:       string;
+  items:           OrderItemAPI[]; // ✅ เพิ่ม items
 }
 
 // ══ Dashboard ══════════════════════════════════════════════════════════════════
